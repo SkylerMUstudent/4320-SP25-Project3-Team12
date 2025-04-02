@@ -59,6 +59,24 @@ def get_time_series_function():
         else:
             print("Invalid choice. Please select 1, 2, 3, or 4.")
 
+# Ask the user for a valid date range
+def get_date_range():
+    while True:
+        start_date = input("\nEnter the start date (YYYY-MM-DD): ").strip()
+        end_date = input("Enter the end date (YYYY-MM-DD): ").strip()
+
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+
+            if end_dt >= start_dt:
+                return start_date, end_date
+            else:
+                print("Error: End date cannot be before the start date. Please try again.")
+        except ValueError:
+            print("Invalid date format. Please enter dates in YYYY-MM-DD format.")
+
+
 # Ask the user how they want to view the data
 def get_display_preference():
     options = {
@@ -164,20 +182,25 @@ if __name__ == "__main__":
     chart_type = get_chart_type()
     time_series_function, interval = get_time_series_function()
     display_pref = get_display_preference()
+    
+    start_date, end_date = get_date_range()  # Ask for date range
 
     stock_data = fetch_stock_data(stock_symbol, time_series_function, interval)
 
     if stock_data:
-        print(f"\nDisplaying data for {stock_symbol} using a {chart_type.lower()}.")
+        print(f"\nDisplaying data for {stock_symbol} from {start_date} to {end_date} using a {chart_type.lower()}.")
+
+        # Filter data within the selected date range
+        filtered_data = {date: values for date, values in stock_data.items() if start_date <= date <= end_date}
 
         if display_pref in ["Table", "Both"]:
-            print("\nMost recent 3 data points:")
-            for date, values in list(stock_data.items())[:3]:
+            print("\nMost recent 3 data points in the selected range:")
+            for date, values in list(filtered_data.items())[:3]:
                 print(f"\nDate: {date}")
                 for k, v in values.items():
                     print(f"  {k}: {v}")
 
         if display_pref in ["Chart", "Both"]:
-            plot_chart(stock_data, stock_symbol, chart_type)
+            plot_chart(filtered_data, stock_symbol, chart_type)
 
-        ask_to_download_csv(stock_data, stock_symbol)
+        ask_to_download_csv(filtered_data, stock_symbol)
