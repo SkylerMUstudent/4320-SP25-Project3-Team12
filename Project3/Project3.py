@@ -2,6 +2,7 @@ import requests
 import matplotlib.pyplot as plt
 from datetime import datetime
 import pandas as pd
+import mplfinance as mpf
 
 # Alpha Vantage API key
 API_KEY = '6P95RTQHO9NS644U'
@@ -138,30 +139,66 @@ def fetch_stock_data(symbol, function, interval=None):
     
     return None
 
-# Plot either a line or bar chart using the stock's closing prices
 def plot_chart(data, symbol, chart_type):
-    dates = []
-    closes = []
+    # Prepare data for plotting
+    df = pd.DataFrame.from_dict(data, orient='index')
+    df.index = pd.to_datetime(df.index)  # Convert index to datetime
+    df = df.rename(columns={
+        "1. open": "Open",
+        "2. high": "High",
+        "3. low": "Low",
+        "4. close": "Close",
+        "5. volume": "Volume"
+    })
 
-    for date_str, values in list(data.items())[:30][::-1]:  # Last 30 points, ordered oldest to newest
-        date_obj = datetime.strptime(date_str, "%Y-%m-%d" if "-" in date_str else "%Y-%m-%d %H:%M:%S")
-        dates.append(date_obj)
-        closes.append(float(values["4. close"]))
+    # Ensure all required columns are numeric
+    for col in ["Open", "High", "Low", "Close", "Volume"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')  # Convert to numeric, set invalid values to NaN
 
-    plt.figure(figsize=(12, 6))
-    plt.title(f"{symbol} - {chart_type}")
-    plt.xlabel("Date")
-    plt.ylabel("Close Price")
+    # Drop rows with NaN values in required columns
+    df = df.dropna(subset=["Open", "High", "Low", "Close"])
 
-    if chart_type == "Line Chart":
-        plt.plot(dates, closes, linewidth=2)
-    elif chart_type == "Bar Chart":
-        plt.bar(dates, closes, width=0.8)
+    # Ensure the required columns are present
+    if chart_type == "Candlestick Chart":
+        if not all(col in df.columns for col in ["Open", "High", "Low", "Close"]):
+            print("Error: Data does not contain the required fields for a candlestick chart.")
+            return
 
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.grid(True)
-    plt.show()
+        # Plot candlestick chart
+        mpf.plot(
+            df,
+            type='candle',
+            title=f"{symbol} - Candlestick Chart",
+            style='charles',
+            volume=True,
+            mav=(10, 20),  # Moving averages (optional)
+            show_nontrading=False
+        )
+    else:
+        # Handle Line Chart and Bar Chart
+        dates = []
+        closes = []
+
+        for date_str, values in list(data.items())[:30][::-1]:  # Last 30 points, ordered oldest to newest
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d" if "-" in date_str else "%Y-%m-%d %H:%M:%S")
+            dates.append(date_obj)
+            closes.append(float(values["4. close"]))
+
+        plt.figure(figsize=(12, 6))
+        plt.title(f"{symbol} - {chart_type}")
+        plt.xlabel("Date")
+        plt.ylabel("Close Price")
+
+        if chart_type == "Line Chart":
+            plt.plot(dates, closes, linewidth=2)
+        elif chart_type == "Bar Chart":
+            plt.bar(dates, closes, width=0.8)
+
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.grid(True)
+        plt.show()
 
 # Ask the user if they want to save the data to a CSV file
 def ask_to_download_csv(data, symbol):
