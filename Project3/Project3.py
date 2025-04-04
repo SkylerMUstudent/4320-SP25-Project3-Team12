@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import pandas as pd
 import mplfinance as mpf
+import plotly.graph_objects as go
 
 # Alpha Vantage API key
 API_KEY = '6P95RTQHO9NS644U'
@@ -159,46 +160,54 @@ def plot_chart(data, symbol, chart_type):
     # Drop rows with NaN values in required columns
     df = df.dropna(subset=["Open", "High", "Low", "Close"])
 
-    # Ensure the required columns are present
     if chart_type == "Candlestick Chart":
-        if not all(col in df.columns for col in ["Open", "High", "Low", "Close"]):
-            print("Error: Data does not contain the required fields for a candlestick chart.")
-            return
-
-        # Plot candlestick chart
-        mpf.plot(
-            df,
-            type='candle',
+        # Create a candlestick chart
+        fig = go.Figure(data=[go.Candlestick(
+            x=df.index,
+            open=df['Open'],
+            high=df['High'],
+            low=df['Low'],
+            close=df['Close']
+        )])
+        fig.update_layout(
             title=f"{symbol} - Candlestick Chart",
-            style='charles',
-            volume=True,
-            mav=(10, 20),  # Moving averages (optional)
-            show_nontrading=False
+            xaxis_title="Date",
+            yaxis_title="Price",
+            template="plotly_dark"
+        )
+    elif chart_type == "Line Chart":
+        # Create a line chart
+        fig = go.Figure(data=[go.Scatter(
+            x=df.index,
+            y=df['Close'],
+            mode='lines',
+            name='Close Price'
+        )])
+        fig.update_layout(
+            title=f"{symbol} - Line Chart",
+            xaxis_title="Date",
+            yaxis_title="Price",
+            template="plotly_dark"
+        )
+    elif chart_type == "Bar Chart":
+        # Create a bar chart
+        fig = go.Figure(data=[go.Bar(
+            x=df.index,
+            y=df['Close'],
+            name='Close Price'
+        )])
+        fig.update_layout(
+            title=f"{symbol} - Bar Chart",
+            xaxis_title="Date",
+            yaxis_title="Price",
+            template="plotly_dark"
         )
     else:
-        # Handle Line Chart and Bar Chart
-        dates = []
-        closes = []
+        print("Invalid chart type.")
+        return
 
-        for date_str, values in list(data.items())[:30][::-1]:  # Last 30 points, ordered oldest to newest
-            date_obj = datetime.strptime(date_str, "%Y-%m-%d" if "-" in date_str else "%Y-%m-%d %H:%M:%S")
-            dates.append(date_obj)
-            closes.append(float(values["4. close"]))
-
-        plt.figure(figsize=(12, 6))
-        plt.title(f"{symbol} - {chart_type}")
-        plt.xlabel("Date")
-        plt.ylabel("Close Price")
-
-        if chart_type == "Line Chart":
-            plt.plot(dates, closes, linewidth=2)
-        elif chart_type == "Bar Chart":
-            plt.bar(dates, closes, width=0.8)
-
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        plt.grid(True)
-        plt.show()
+    # Open the chart in the browser
+    fig.show()
 
 # Ask the user if they want to save the data to a CSV file
 def ask_to_download_csv(data, symbol):
